@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+
+    <!-- www.wizmarket.ai 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">www.wizmarket.ai</domain>
+    </domain-config>
+
+    <!-- 221.151.48.225 IP 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">221.151.48.225</domain>
+    </domain-config>
+
+</network-security-config>

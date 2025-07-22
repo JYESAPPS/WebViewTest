@@ -8,6 +8,11 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import android.os.Build
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
+
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -15,8 +20,31 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        webView = WebView(this)
-        setContentView(webView)
+        setContentView(R.layout.activity_main)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.setDecorFitsSystemWindows(false) // ✅ 시스템 창과 겹치도록 설정
+
+            window.insetsController?.let { controller ->
+                // ✅ 아이콘은 검정색으로 유지
+                controller.setSystemBarsAppearance(
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                )
+                controller.show(WindowInsets.Type.statusBars())
+            }
+
+            // ✅ 상태바 배경을 완전히 투명하게
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            window.statusBarColor = android.graphics.Color.TRANSPARENT
+        }
+
+
+
+        // ✅ XML에서 WebView 찾기
+        webView = findViewById(R.id.webView)
 
         // ✅ WebChromeClient 커스터마이징: console.log 출력용
         webView.webChromeClient = object : WebChromeClient() {

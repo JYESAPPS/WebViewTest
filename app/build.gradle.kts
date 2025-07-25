@@ -40,7 +40,7 @@ android {
 }
 
 dependencies {
-
+    implementation("com.kakao.sdk:v2-user:2.19.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

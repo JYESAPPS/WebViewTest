@@ -1,5 +1,7 @@
 package com.example.webviewtest
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.webkit.ConsoleMessage
@@ -9,16 +11,45 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Build
+import android.provider.MediaStore
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import androidx.core.content.FileProvider
+import com.kakao.sdk.common.KakaoSdk;
+import com.kakao.sdk.common.util.Utility;
+import java.io.File
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
+    private val REQUEST_IMAGE_CAPTURE = 1001
+    private var imageUri: Uri? = null
+
+
+    fun getWebView(): WebView {
+        return webView
+    }
+
+    private fun handleKakaoRedirect(intent: Intent?) {
+        val data: Uri? = intent?.data
+        if (data != null && data.toString().startsWith("yourapp://oauth")) {
+            val code = data.getQueryParameter("code")
+            if (code != null) {
+                Log.d("KakaoLogin", "카카오 인증 코드 수신: $code")
+
+                // ✅ WebView 안에 있는 React로 인증 코드 전달
+                webView.evaluateJavascript("window.kakaoLoginComplete('$code');", null)
+            }
+        }
+    }
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        KakaoSdk.init(this, "f5a9e17194ba85545dc8f9cdb66928ed")
 
         setContentView(R.layout.activity_main)
 
@@ -66,9 +97,24 @@ class MainActivity : AppCompatActivity() {
 
         webView.addJavascriptInterface(WebAppInterface(this), "Android")
 
+        val pref = getSharedPreferences("auth", MODE_PRIVATE)
+        val savedToken = pref.getString("access_token", null)
 
-        webView.loadUrl("http://www.wizmarket.ai:53003/ads/login/MA010120220808570604")
+        if (savedToken != null) {
+            // 자동 로그인 시도
+            webView.evaluateJavascript("window.autoLogin('$savedToken')", null)
+        }
+
+
+        webView.loadUrl("http://www.wizmarket.ai:53003/ads/login")
+        handleKakaoRedirect(intent)
     }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        handleKakaoRedirect(intent)
+    }
+
 
     override fun onBackPressed() {
         if (webView.canGoBack()) {
@@ -77,4 +123,30 @@ class MainActivity : AppCompatActivity() {
             super.onBackPressed()
         }
     }
+
+    fun openCamera() {
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        val photoFile = File.createTempFile("camera_", ".jpg", cacheDir)
+
+        imageUri = FileProvider.getUriForFile(
+            this,
+            "$packageName.fileprovider", // 예: com.example.webviewtest.fileprovider
+            photoFile
+        )
+
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri)
+        startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
+    }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            imageUri?.let { uri ->
+                // ✅ 웹뷰로 이미지 URI 전달
+                webView.evaluateJavascript("window.receiveCameraImage('${uri.toString()}')", null)
+            }
+        }
+    }
+
+
 }

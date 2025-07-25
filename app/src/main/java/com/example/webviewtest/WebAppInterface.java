@@ -1,5 +1,6 @@
 package com.example.webviewtest;
 
+import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -7,21 +8,60 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
+
+import com.kakao.sdk.user.UserApiClient;
 
 import java.io.File;
 import java.io.FileOutputStream;
 
 public class WebAppInterface {
     Context mContext;
+    private Activity mActivity;
 
     public WebAppInterface(Context context) {
         mContext = context;
     }
+
+    public WebAppInterface(Activity activity) {
+        this.mActivity = activity;
+        this.mContext = activity.getApplicationContext();
+    }
+
+    @JavascriptInterface
+    public void saveToken(String accessToken, String refreshToken) {
+        mContext.getSharedPreferences("auth", Context.MODE_PRIVATE)
+                .edit()
+                .putString("access_token", accessToken)
+                .putString("refresh_token", refreshToken)
+                .apply();
+    }
+
+    @JavascriptInterface
+    public String getToken() {
+        return mContext.getSharedPreferences("auth", Context.MODE_PRIVATE)
+                .getString("access_token", null);
+    }
+
+    @JavascriptInterface
+    public String getRefreshToken() {
+        return mContext.getSharedPreferences("auth", Context.MODE_PRIVATE)
+                .getString("refresh_token", null);
+    }
+
+    @JavascriptInterface
+    public void openCamera() {
+        if (mContext instanceof MainActivity) {
+            ((MainActivity) mContext).openCamera();  // ✅ MainActivity의 openCamera 호출
+        }
+    }
+
 
     @JavascriptInterface
     public void shareInstagramBase64(String base64Image, String caption) {
@@ -109,5 +149,45 @@ public class WebAppInterface {
         }).start();
     }
 
+    @JavascriptInterface
+    public void startKakaoLogin() {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            // 카카오톡 로그인 → 안되면 계정 로그인으로 fallback
+            if (UserApiClient.getInstance().isKakaoTalkLoginAvailable(mContext)) {
+                UserApiClient.getInstance().loginWithKakaoTalk(mContext, (oauthToken, error) -> {
+                    if (error != null) {
+                        Log.e("KakaoLogin", "카카오톡 로그인 실패, 계정 로그인 시도", error);
+                        loginWithKakaoAccountFallback(); // 🔁 fallback 시도
+                    } else if (oauthToken != null) {
+                        sendTokenToWebView(oauthToken.getAccessToken());
+                    }
+                    return null; // ✅ 이거 꼭 추가
+                });
+            } else {
+                // ❗ 카카오톡 미설치 → 바로 계정 로그인
+                loginWithKakaoAccountFallback();
+            }
+        });
+    }
 
+    private void loginWithKakaoAccountFallback() {
+        UserApiClient.getInstance().loginWithKakaoAccount(mContext, (oauthToken, error) -> {
+            if (error != null) {
+                Log.e("KakaoLogin", "계정 로그인 실패", error);
+            } else if (oauthToken != null) {
+                sendTokenToWebView(oauthToken.getAccessToken());
+            }
+            return null;
+        });
+    }
+
+    private void sendTokenToWebView(String token) {
+        if (mContext instanceof MainActivity) {
+            ((MainActivity) mContext).runOnUiThread(() -> {
+                ((MainActivity) mContext).getWebView().evaluateJavascript(
+                        "window.kakaoLoginComplete('" + token + "')", null
+                );
+            });
+        }
+    }
 }

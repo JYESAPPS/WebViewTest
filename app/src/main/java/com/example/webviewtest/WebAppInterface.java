@@ -28,6 +28,7 @@ import com.navercorp.nid.oauth.OAuthLoginCallback;
 
 
 
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -135,6 +136,39 @@ public class WebAppInterface {
             }
         });
     }
+
+    // 네이버 로그인
+    @JavascriptInterface
+    public void startNaverLogin() {
+        if (!(mContext instanceof MainActivity)) return;
+
+        Activity activity = (Activity) mContext;
+
+        NaverIdLoginSDK.INSTANCE.authenticate(activity, new OAuthLoginCallback() {
+            @Override
+            public void onSuccess() {
+                String accessToken = NaverIdLoginSDK.INSTANCE.getAccessToken();
+                Log.d("✅ NaverLogin", "AccessToken: " + accessToken);
+
+                activity.runOnUiThread(() -> {
+                    ((MainActivity) mContext).getWebView().evaluateJavascript(
+                            "window.naverLoginComplete('" + accessToken + "')", null
+                    );
+                });
+            }
+
+            @Override
+            public void onFailure(int httpStatus, String message) {
+                Log.e("❌ NaverLogin", "Failure (" + httpStatus + "): " + message);
+            }
+
+            @Override
+            public void onError(int errorCode, String message) {
+                Log.e("❌ NaverLogin", "Error (" + errorCode + "): " + message);
+            }
+        });
+    }
+
 
 
 

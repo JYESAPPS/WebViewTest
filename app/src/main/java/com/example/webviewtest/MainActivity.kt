@@ -28,7 +28,7 @@ import com.google.android.gms.tasks.Task
 import com.kakao.sdk.common.KakaoSdk
 import java.io.File
 import androidx.appcompat.app.AlertDialog
-
+import com.navercorp.nid.NaverIdLoginSDK
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -61,6 +61,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        NaverIdLoginSDK.initialize(
+            this,
+            "lwb1w99Kh03rUiUlrdRV",
+            "Gx1QngKlF0",
+            "Wiz AD"
+        )
 
         KakaoSdk.init(this, "f5a9e17194ba85545dc8f9cdb66928ed")
 

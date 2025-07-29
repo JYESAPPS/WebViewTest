@@ -13,17 +13,35 @@ import android.util.Base64;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 import android.widget.Toast;
-
 import androidx.core.content.FileProvider;
-
 import com.kakao.sdk.user.UserApiClient;
+import android.content.Intent;
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.common.api.ApiException;
+import com.google.android.gms.tasks.Task;
+import com.navercorp.nid.NaverIdLoginSDK;
+import com.navercorp.nid.oauth.OAuthLoginCallback;
+
+
+
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 
 public class WebAppInterface {
-    Context mContext;
+    private Context mContext;
     private Activity mActivity;
+    private Uri imageUri = null;
+
+    public static final int GOOGLE_SIGN_IN_REQUEST_CODE = 1001;
+    public void setImageUri(Uri uri) {
+        this.imageUri = uri;
+    }
+
 
     public WebAppInterface(Context context) {
         mContext = context;
@@ -31,7 +49,7 @@ public class WebAppInterface {
 
     public WebAppInterface(Activity activity) {
         this.mActivity = activity;
-        this.mContext = activity.getApplicationContext();
+        this.mContext = activity;
     }
 
     @JavascriptInterface
@@ -55,100 +73,8 @@ public class WebAppInterface {
                 .getString("refresh_token", null);
     }
 
-    @JavascriptInterface
-    public void openCamera() {
-        if (mContext instanceof MainActivity) {
-            ((MainActivity) mContext).openCamera();  // ✅ MainActivity의 openCamera 호출
-        }
-    }
 
-
-    @JavascriptInterface
-    public void shareInstagramBase64(String base64Image, String caption) {
-        new Thread(() -> {
-            try {
-                // 1. 이미지 처리
-                String base64 = base64Image.split(",")[1];
-                byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
-                File cachePath = new File(mContext.getCacheDir(), "images");
-                cachePath.mkdirs();
-                File file = new File(cachePath, "shared_image.png");
-                FileOutputStream fos = new FileOutputStream(file);
-                fos.write(imageData);
-                fos.close();
-
-                Uri contentUri = FileProvider.getUriForFile(
-                        mContext,
-                        mContext.getPackageName() + ".fileprovider",
-                        file
-                );
-
-                // 2. 클립보드에 caption 복사
-                ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
-                ClipData clip = ClipData.newPlainText("Instagram Caption", caption);
-                clipboard.setPrimaryClip(clip);
-
-                // 3. 인스타그램 공유 인텐트
-                Intent shareIntent = new Intent(Intent.ACTION_SEND);
-                shareIntent.setType("image/*");
-                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-                shareIntent.setPackage("com.instagram.android");
-                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                mContext.startActivity(shareIntent);
-
-                // 4. 안내 메시지
-                new Handler(Looper.getMainLooper()).post(() ->
-                        Toast.makeText(mContext, "텍스트가 복사되었습니다. 인스타그램에 붙여넣기 해주세요.", Toast.LENGTH_LONG).show()
-                );
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                new Handler(Looper.getMainLooper()).post(() ->
-                        Toast.makeText(mContext, "Instagram 공유 실패", Toast.LENGTH_SHORT).show()
-                );
-            }
-        }).start();
-    }
-
-    @JavascriptInterface
-    public void shareKakaoTalk(String base64Image) {
-        new Thread(() -> {
-            try {
-                // 1. 이미지 디코딩 및 저장
-                String base64 = base64Image.split(",")[1];
-                byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
-                File cachePath = new File(mContext.getCacheDir(), "images");
-                cachePath.mkdirs();
-                File file = new File(cachePath, "shared_kakao_image.png");
-                FileOutputStream fos = new FileOutputStream(file);
-                fos.write(imageData);
-                fos.close();
-
-                Uri contentUri = FileProvider.getUriForFile(
-                        mContext,
-                        mContext.getPackageName() + ".fileprovider",
-                        file
-                );
-
-                // 2. 카카오톡 공유 인텐트
-                Intent shareIntent = new Intent(Intent.ACTION_SEND);
-                shareIntent.setType("image/*");
-                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-                shareIntent.setPackage("com.kakao.talk");
-                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-                mContext.startActivity(shareIntent);
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                new Handler(Looper.getMainLooper()).post(() ->
-                        Toast.makeText(mContext, "카카오톡 공유 실패", Toast.LENGTH_SHORT).show()
-                );
-            }
-        }).start();
-    }
-
+    // 카톡 로그인
     @JavascriptInterface
     public void startKakaoLogin() {
         new Handler(Looper.getMainLooper()).post(() -> {
@@ -190,4 +116,249 @@ public class WebAppInterface {
             });
         }
     }
+
+
+    // 구글 로그인
+    @JavascriptInterface
+    public void startGoogleLogin() {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                    .requestEmail()
+                    .requestIdToken("621843053596-0v9o72kp1u1e03vb64j7nfbjl5e9ptkd.apps.googleusercontent.com") // ✅ 반드시 Android용 클라이언트 ID 사용
+                    .build();
+
+            GoogleSignInClient googleSignInClient = GoogleSignIn.getClient(mContext, gso);
+            Intent signInIntent = googleSignInClient.getSignInIntent();
+
+            if (mContext instanceof Activity) {
+                ((Activity) mContext).startActivityForResult(signInIntent, GOOGLE_SIGN_IN_REQUEST_CODE);
+            }
+        });
+    }
+
+
+
+
+    // 카메라 열기
+    @JavascriptInterface
+    public void openCamera() {
+        if (mContext instanceof MainActivity) {
+            ((MainActivity) mContext).openCamera();
+        }
+    }
+
+
+    @JavascriptInterface
+    public void sendCapturedImage() {
+        if (imageUri == null) return;
+
+        try {
+            InputStream inputStream = mContext.getContentResolver().openInputStream(imageUri);
+            byte[] bytes = new byte[inputStream.available()];
+            inputStream.read(bytes);
+            inputStream.close();
+
+            // ✅ 1. 줄바꿈 없이 인코딩
+            String base64Image = Base64.encodeToString(bytes, Base64.NO_WRAP);
+            String dataUri = "data:image/jpeg;base64," + base64Image;
+
+            // ✅ 2. JS로 넘기기 전에 URI-safe 인코딩
+            String encodedDataUri = Uri.encode(dataUri);
+
+            // ✅ 3. JS에서 decodeURIComponent(...)로 복원
+            ((MainActivity) mContext).runOnUiThread(() -> {
+                ((MainActivity) mContext).getWebView().evaluateJavascript(
+                        "window.receiveCameraImage(decodeURIComponent('" + encodedDataUri + "'))", null
+                );
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+            new Handler(Looper.getMainLooper()).post(() ->
+                    Toast.makeText(mContext, "❌ 이미지 처리 중 오류 발생", Toast.LENGTH_SHORT).show()
+            );
+        }
+    }
+
+
+    @JavascriptInterface
+    public void openGallery() {
+        if (mContext instanceof MainActivity) {
+            ((MainActivity) mContext).openGallery();
+        }
+    }
+
+    @JavascriptInterface
+    public void sendGalleryImage() {
+        if (imageUri == null) return;
+
+        try {
+            InputStream inputStream = mContext.getContentResolver().openInputStream(imageUri);
+            byte[] bytes = new byte[inputStream.available()];
+            inputStream.read(bytes);
+            inputStream.close();
+
+            // ✅ 1. 줄바꿈 없이 인코딩
+            String base64Image = Base64.encodeToString(bytes, Base64.NO_WRAP);
+            String dataUri = "data:image/jpeg;base64," + base64Image;
+
+            // ✅ 2. JS로 넘기기 전에 URI-safe 인코딩
+            String encodedDataUri = Uri.encode(dataUri);
+
+            // ✅ 3. JS에서 decodeURIComponent(...)로 복원
+            ((MainActivity) mContext).runOnUiThread(() -> {
+                ((MainActivity) mContext).getWebView().evaluateJavascript(
+                        "window.receiveCameraImage(decodeURIComponent('" + encodedDataUri + "'))", null
+                );
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+            new Handler(Looper.getMainLooper()).post(() ->
+                    Toast.makeText(mContext, "❌ 이미지 처리 중 오류 발생", Toast.LENGTH_SHORT).show()
+            );
+        }
+    }
+
+
+
+
+
+
+    // 피드
+    @JavascriptInterface
+    public void shareInstagramBase64(String base64Image, String caption) {
+        new Thread(() -> {
+            try {
+                // 1. 이미지 처리
+                String base64 = base64Image.split(",")[1];
+                byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
+                File cachePath = new File(mContext.getCacheDir(), "images");
+                cachePath.mkdirs();
+                File file = new File(cachePath, "shared_image.png");
+                FileOutputStream fos = new FileOutputStream(file);
+                fos.write(imageData);
+                fos.close();
+
+                Uri contentUri = FileProvider.getUriForFile(
+                        mContext,
+                        mContext.getPackageName() + ".fileprovider",
+                        file
+                );
+
+                // 2. 클립보드에 caption 복사
+                ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("Instagram Caption", caption);
+                clipboard.setPrimaryClip(clip);
+
+                // 3. 인스타그램 공유 인텐트
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("image/*");
+                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                shareIntent.setPackage("com.instagram.android");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);  // ✅ 이 줄 추가!
+
+
+                mContext.startActivity(shareIntent);
+
+                // 4. 안내 메시지
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "텍스트가 복사되었습니다. 인스타그램에 붙여넣기 해주세요.", Toast.LENGTH_LONG).show()
+                );
+
+            } catch (Exception e) {
+                Log.e("InstagramShare", "Instagram 공유 실패", e);  // ✅ 로그 출력 추가
+                e.printStackTrace();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "Instagram 공유 실패", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
+
+    // 스토리
+    @JavascriptInterface
+    public void shareInstagramImageOnly(String base64Image) {
+        new Thread(() -> {
+            try {
+                // 1. 이미지 디코딩 및 저장
+                String base64 = base64Image.split(",")[1];
+                byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
+
+                File cachePath = new File(mContext.getCacheDir(), "images");
+                cachePath.mkdirs();
+                File file = new File(cachePath, "shared_image_only.png");
+
+                FileOutputStream fos = new FileOutputStream(file);
+                fos.write(imageData);
+                fos.close();
+
+                // 2. 이미지 URI 생성
+                Uri contentUri = FileProvider.getUriForFile(
+                        mContext,
+                        mContext.getPackageName() + ".fileprovider",
+                        file
+                );
+
+                // 3. 인스타그램 공유 인텐트
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("image/*");
+                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                shareIntent.setPackage("com.instagram.android");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);  // 중요!
+
+                mContext.startActivity(shareIntent);
+
+            } catch (Exception e) {
+                Log.e("InstagramShare", "Instagram 이미지 공유 실패", e);
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "Instagram 이미지 공유 실패", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
+
+
+    // 인스타그램
+    @JavascriptInterface
+    public void shareKakaoTalk(String base64Image) {
+        new Thread(() -> {
+            try {
+                // 1. 이미지 디코딩 및 저장
+                String base64 = base64Image.split(",")[1];
+                byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
+                File cachePath = new File(mContext.getCacheDir(), "images");
+                cachePath.mkdirs();
+                File file = new File(cachePath, "shared_kakao_image.png");
+                FileOutputStream fos = new FileOutputStream(file);
+                fos.write(imageData);
+                fos.close();
+
+                Uri contentUri = FileProvider.getUriForFile(
+                        mContext,
+                        mContext.getPackageName() + ".fileprovider",
+                        file
+                );
+
+                // 2. 카카오톡 공유 인텐트
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("image/*");
+                shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+                shareIntent.setPackage("com.kakao.talk");
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);  // 🔧 꼭 추가해야 함!
+
+
+                mContext.startActivity(shareIntent);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "카카오톡 공유 실패", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
+
+
 }

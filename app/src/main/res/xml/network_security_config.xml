@@ -11,4 +11,8 @@
         <domain includeSubdomains="true">221.151.48.225</domain>
     </domain-config>
 
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">postcode.map.daum.net</domain>
+    </domain-config>
+
 </network-security-config>

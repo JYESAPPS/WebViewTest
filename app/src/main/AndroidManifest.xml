@@ -32,6 +32,9 @@
             </intent-filter>
         </activity>
 
+        <meta-data
+            android:name="com.naver.client.id"
+            android:value="lwb1w99Kh03rUiUlrdRV" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

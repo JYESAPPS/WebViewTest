@@ -155,15 +155,8 @@ class MainActivity : AppCompatActivity() {
     private fun handleGoogleSignInResult(task: Task<GoogleSignInAccount>) {
         try {
             val account = task.getResult(ApiException::class.java)
-
-            Log.d("GoogleLogin", "🟢 account: $account")
-            Log.d("GoogleLogin", "🟢 idToken: ${account?.idToken}")
-            Log.d("GoogleLogin", "🟢 email: ${account?.email}")
-
             val idToken = account?.idToken
-
-            Toast.makeText(this, "✅ 로그인 성공\nemail: ${account?.email}", Toast.LENGTH_SHORT).show()
-
+            
             // WebView로 토큰 전달
             webView.evaluateJavascript("window.googleLoginComplete('$idToken')", null)
 

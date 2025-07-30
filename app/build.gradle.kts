@@ -11,7 +11,7 @@ android {
     signingConfigs {
         // 🔐 릴리즈 keystore 설정
         create("release") {
-            storeFile = file("release.keystore") // 프로젝트 루트에 위치 시
+            storeFile = file("app/release.keystore") // 프로젝트 루트에 위치 시
             storePassword = "android"
             keyAlias = "my-release-key"
             keyPassword = "android"

@@ -156,7 +156,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val account = task.getResult(ApiException::class.java)
             val idToken = account?.idToken
-            
+
             // WebView로 토큰 전달
             webView.evaluateJavascript("window.googleLoginComplete('$idToken')", null)
 

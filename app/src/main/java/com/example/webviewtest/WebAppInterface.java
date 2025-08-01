@@ -24,8 +24,8 @@ import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
 import com.navercorp.nid.NaverIdLoginSDK;
 import com.navercorp.nid.oauth.OAuthLoginCallback;
-
-
+import org.json.JSONArray;
+import java.util.ArrayList;
 
 
 
@@ -353,7 +353,7 @@ public class WebAppInterface {
     }
 
 
-    // 인스타그램
+    // 카카오톡
     @JavascriptInterface
     public void shareKakaoTalk(String base64Image) {
         new Thread(() -> {
@@ -394,5 +394,66 @@ public class WebAppInterface {
         }).start();
     }
 
+
+    @JavascriptInterface
+    public void shareBlog(String base64ListJson, String caption) {
+        new Thread(() -> {
+            try {
+                JSONArray base64Array = new JSONArray(base64ListJson);
+                ArrayList<Uri> uriList = new ArrayList<>();
+
+                File cacheDir = new File(mContext.getCacheDir(), "blog_images");
+                cacheDir.mkdirs();
+
+                for (int i = 0; i < base64Array.length(); i++) {
+                    String base64Image = base64Array.getString(i).split(",")[1];
+                    byte[] imageData = Base64.decode(base64Image, Base64.DEFAULT);
+
+                    File imageFile = new File(cacheDir, "blog_image_" + i + ".png");
+                    FileOutputStream fos = new FileOutputStream(imageFile);
+                    fos.write(imageData);
+                    fos.close();
+
+                    Uri uri = FileProvider.getUriForFile(
+                            mContext,
+                            mContext.getPackageName() + ".fileprovider",
+                            imageFile
+                    );
+                    uriList.add(uri);
+                }
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "공유 이미지 수: " + uriList.size(), Toast.LENGTH_SHORT).show()
+                );
+
+                // 클립보드에 캡션 복사
+                ClipboardManager clipboard = (ClipboardManager) mContext.getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("Blog Caption", caption);
+                clipboard.setPrimaryClip(clip);
+
+                // 공유 인텐트 만들기
+                Intent shareIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
+                shareIntent.setType("image/*");
+                shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, uriList);
+                shareIntent.putExtra(Intent.EXTRA_TEXT, caption);
+                shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+
+                // 공유 앱 선택
+                shareIntent.setPackage("com.nhn.android.blog");
+                mContext.startActivity(shareIntent);
+
+                // 안내 메시지
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "텍스트가 복사되었습니다. 블로그에 붙여넣기 해주세요.", Toast.LENGTH_LONG).show()
+                );
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "블로그 공유 실패", Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
 
 }

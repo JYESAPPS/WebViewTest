@@ -12,6 +12,7 @@ import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
+import android.webkit.WebView;
 import android.widget.Toast;
 import androidx.core.content.FileProvider;
 import com.kakao.sdk.user.UserApiClient;
@@ -22,8 +23,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.tasks.Task;
-import com.navercorp.nid.NaverIdLoginSDK;
-import com.navercorp.nid.oauth.OAuthLoginCallback;
+//import com.navercorp.nid.NaverIdLoginSDK;
+//import com.navercorp.nid.oauth.OAuthLoginCallback;
 import org.json.JSONArray;
 import java.util.ArrayList;
 
@@ -138,36 +139,36 @@ public class WebAppInterface {
     }
 
     // 네이버 로그인
-    @JavascriptInterface
-    public void startNaverLogin() {
-        if (!(mContext instanceof MainActivity)) return;
-
-        Activity activity = (Activity) mContext;
-
-        NaverIdLoginSDK.INSTANCE.authenticate(activity, new OAuthLoginCallback() {
-            @Override
-            public void onSuccess() {
-                String accessToken = NaverIdLoginSDK.INSTANCE.getAccessToken();
-                Log.d("✅ NaverLogin", "AccessToken: " + accessToken);
-
-                activity.runOnUiThread(() -> {
-                    ((MainActivity) mContext).getWebView().evaluateJavascript(
-                            "window.naverLoginComplete('" + accessToken + "')", null
-                    );
-                });
-            }
-
-            @Override
-            public void onFailure(int httpStatus, String message) {
-                Log.e("❌ NaverLogin", "Failure (" + httpStatus + "): " + message);
-            }
-
-            @Override
-            public void onError(int errorCode, String message) {
-                Log.e("❌ NaverLogin", "Error (" + errorCode + "): " + message);
-            }
-        });
-    }
+//    @JavascriptInterface
+//    public void startNaverLogin() {
+//        if (!(mContext instanceof MainActivity)) return;
+//
+//        Activity activity = (Activity) mContext;
+//
+//        NaverIdLoginSDK.INSTANCE.authenticate(activity, new OAuthLoginCallback() {
+//            @Override
+//            public void onSuccess() {
+//                String accessToken = NaverIdLoginSDK.INSTANCE.getAccessToken();
+//                Log.d("✅ NaverLogin", "AccessToken: " + accessToken);
+//
+//                activity.runOnUiThread(() -> {
+//                    ((MainActivity) mContext).getWebView().evaluateJavascript(
+//                            "window.naverLoginComplete('" + accessToken + "')", null
+//                    );
+//                });
+//            }
+//
+//            @Override
+//            public void onFailure(int httpStatus, String message) {
+//                Log.e("❌ NaverLogin", "Failure (" + httpStatus + "): " + message);
+//            }
+//
+//            @Override
+//            public void onError(int errorCode, String message) {
+//                Log.e("❌ NaverLogin", "Error (" + errorCode + "): " + message);
+//            }
+//        });
+//    }
 
 
 
@@ -213,7 +214,7 @@ public class WebAppInterface {
         }
     }
 
-
+    // 갤러리 열기
     @JavascriptInterface
     public void openGallery() {
         if (mContext instanceof MainActivity) {
@@ -253,7 +254,27 @@ public class WebAppInterface {
     }
 
 
+    // 카메라 or 갤러리 선택 취소
+    @JavascriptInterface
+    public void notifyImageSelectionCancelled() {
+        if (mActivity instanceof MainActivity) {
+            MainActivity main = (MainActivity) mActivity;
+            main.runOnUiThread(() -> {
+                WebView webView = main.getWebView();
+                webView.evaluateJavascript("window.onCameraCancelled()", null);
+            });
+        }
+    }
 
+
+
+    // 새창 열기
+    @JavascriptInterface
+    public void openExternalLink(String url) {
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        mContext.startActivity(intent);  // ✅ 정상 동작
+    }
 
 
 
@@ -394,7 +415,7 @@ public class WebAppInterface {
         }).start();
     }
 
-
+    // 블로그
     @JavascriptInterface
     public void shareBlog(String base64ListJson, String caption) {
         new Thread(() -> {
@@ -452,6 +473,48 @@ public class WebAppInterface {
                 new Handler(Looper.getMainLooper()).post(() ->
                         Toast.makeText(mContext, "블로그 공유 실패", Toast.LENGTH_SHORT).show()
                 );
+            }
+        }).start();
+    }
+    // WebAppInterface.java
+    @JavascriptInterface
+    public void sendTokenToWeb(String token) {
+        if (mActivity instanceof MainActivity) {
+            MainActivity main = (MainActivity) mActivity;
+            main.runOnUiThread(() -> {
+                WebView webView = main.getWebView();  // ✅ 이제 인식됨
+                String js = String.format("window.receiveFcmToken('%s');", token);
+                webView.evaluateJavascript(js, null);
+            });
+        }
+    }
+
+    // 이미지 저장
+    @JavascriptInterface
+    public void saveCapturedImageBase64(String base64Data) {
+        new Thread(() -> {
+            try {
+                String base64 = base64Data.split(",")[1];
+                byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
+
+                File imageFile = new File(
+                        mContext.getExternalFilesDir(null),
+                        "captured_image_" + System.currentTimeMillis() + ".png"
+                );
+
+                FileOutputStream fos = new FileOutputStream(imageFile);
+                fos.write(imageBytes);
+                fos.close();
+
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Toast.makeText(mContext, "✅ 이미지 저장 완료:\n" + imageFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    Toast.makeText(mContext, "❌ 이미지 저장 실패", Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }

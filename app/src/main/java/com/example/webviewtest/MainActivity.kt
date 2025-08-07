@@ -28,7 +28,9 @@ import com.google.android.gms.tasks.Task
 import com.kakao.sdk.common.KakaoSdk
 import java.io.File
 import androidx.appcompat.app.AlertDialog
-import com.navercorp.nid.NaverIdLoginSDK
+// import com.navercorp.nid.NaverIdLoginSDK
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -37,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_GALLERY = 1003
     private var imageUri: Uri? = null
     private lateinit var webAppInterface: WebAppInterface
+    private val NOTIFICATION_PERMISSION_CODE = 1004
 
 
 
@@ -62,12 +65,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        NaverIdLoginSDK.initialize(
-            this,
-            "lwb1w99Kh03rUiUlrdRV",
-            "Gx1QngKlF0",
-            "Wiz AD"
-        )
+//        NaverIdLoginSDK.initialize(
+//            this,
+//            "lwb1w99Kh03rUiUlrdRV",
+//            "Gx1QngKlF0",
+//            "Wiz AD"
+//        )
 
         KakaoSdk.init(this, "f5a9e17194ba85545dc8f9cdb66928ed")
 
@@ -127,9 +130,39 @@ class MainActivity : AppCompatActivity() {
             webView.evaluateJavascript("window.autoLogin('$savedToken')", null)
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIFICATION_PERMISSION_CODE
+                )
+            }
+        }
+
 
         webView.loadUrl("http://www.wizmarket.ai:53003/ads/login")
         handleKakaoRedirect(intent)
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+
+                // ✅ WebView 완전히 로딩된 이후에 JS 함수 호출
+                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        val token = task.result
+                        Log.d("FCM", "토큰 (onPageFinished): $token")
+
+                        webView.evaluateJavascript("window.receiveFcmToken('$token');", null)
+                    } else {
+                        Log.w("FCM", "토큰 가져오기 실패", task.exception)
+                    }
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -198,6 +231,13 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "❌ 카메라 권한이 거부되었습니다", Toast.LENGTH_SHORT).show()
             }
         }
+        if (requestCode == NOTIFICATION_PERMISSION_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d("FCM", "✅ 알림 권한 허용됨")
+            } else {
+                Toast.makeText(this, "❌ 알림 권한이 거부되었습니다", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
 
@@ -248,6 +288,7 @@ class MainActivity : AppCompatActivity() {
             handleGoogleSignInResult(task)
 
         } else {
+            webAppInterface.notifyImageSelectionCancelled()  // ✅ JS에게도 취소 알림
             Toast.makeText(this, "❌ 사진 선택 실패 또는 취소됨", Toast.LENGTH_SHORT).show()
         }
     }

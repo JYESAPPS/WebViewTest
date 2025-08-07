@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -72,7 +73,8 @@ android {
 dependencies {
     implementation("com.kakao.sdk:v2-user:2.19.0")
     implementation("com.google.android.gms:play-services-auth:20.7.0")
-    implementation(libs.naver.oauth) // ✅ toml 파일 기반으로 참조
+    implementation("com.google.firebase:firebase-messaging:23.4.1")
+    // implementation(libs.naver.oauth) // ✅ toml 파일 기반으로 참조
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

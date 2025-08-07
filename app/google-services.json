@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "915509632075",
+    "project_id": "mypushapp-2af63",
+    "storage_bucket": "mypushapp-2af63.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915509632075:android:59ee7926d73987d63601ce",
+        "android_client_info": {
+          "package_name": "com.example.webviewtest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7X2G2To1GKNyO4AmTeJ1HOIj6gIoDs7g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

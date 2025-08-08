@@ -28,9 +28,13 @@ import com.google.android.gms.tasks.Task
 import com.kakao.sdk.common.KakaoSdk
 import java.io.File
 import androidx.appcompat.app.AlertDialog
+import androidx.core.view.WindowCompat
 // import com.navercorp.nid.NaverIdLoginSDK
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
+import android.view.View
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 
 class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
@@ -64,38 +68,27 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
-//        NaverIdLoginSDK.initialize(
+        setContentView(R.layout.activity_main) // 딱 한 번만!
+
+        // ✅ 루트 레이아웃에만 인셋 패딩 적용
+        val root = findViewById<View>(R.id.root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            insets
+        }
+
+
+        KakaoSdk.init(this, "f5a9e17194ba85545dc8f9cdb66928ed")
+
+        //        NaverIdLoginSDK.initialize(
 //            this,
 //            "lwb1w99Kh03rUiUlrdRV",
 //            "Gx1QngKlF0",
 //            "Wiz AD"
 //        )
-
-        KakaoSdk.init(this, "f5a9e17194ba85545dc8f9cdb66928ed")
-
-        setContentView(R.layout.activity_main)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.setDecorFitsSystemWindows(false) // ✅ 시스템 창과 겹치도록 설정
-
-            window.insetsController?.let { controller ->
-                // ✅ 아이콘은 검정색으로 유지
-                controller.setSystemBarsAppearance(
-                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
-                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                )
-                controller.show(WindowInsets.Type.statusBars())
-            }
-
-            // ✅ 상태바 배경을 완전히 투명하게
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
-        } else {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-            window.statusBarColor = android.graphics.Color.TRANSPARENT
-        }
-
-
 
         // ✅ XML에서 WebView 찾기
         webView = findViewById(R.id.webView)

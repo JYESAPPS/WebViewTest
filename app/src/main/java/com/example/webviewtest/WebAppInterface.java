@@ -5,6 +5,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -27,7 +28,13 @@ import com.google.android.gms.tasks.Task;
 //import com.navercorp.nid.oauth.OAuthLoginCallback;
 import org.json.JSONArray;
 import java.util.ArrayList;
+import android.content.ContentValues;
+import android.content.ContentResolver;
+import android.media.MediaScannerConnection;
+import android.os.Build;
+import android.os.Environment;
 
+import java.io.OutputStream;
 
 
 import java.io.File;
@@ -494,29 +501,71 @@ public class WebAppInterface {
     public void saveCapturedImageBase64(String base64Data) {
         new Thread(() -> {
             try {
-                String base64 = base64Data.split(",")[1];
+                // base64 prefix 방어
+                String base64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
                 byte[] imageBytes = Base64.decode(base64, Base64.DEFAULT);
 
-                File imageFile = new File(
-                        mContext.getExternalFilesDir(null),
-                        "captured_image_" + System.currentTimeMillis() + ".png"
+                String fileName = "captured_image_" + System.currentTimeMillis() + ".png";
+
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
+
+                // Android 10+(API 29~): 공용 Pictures/YourApp 경로 지정
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/YourApp");
+                    values.put(MediaStore.Images.Media.IS_PENDING, 1);
+                }
+
+                ContentResolver resolver = mContext.getContentResolver();
+                Uri uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) throw new RuntimeException("MediaStore insert failed");
+
+                try (OutputStream os = resolver.openOutputStream(uri)) {
+                    if (os == null) throw new RuntimeException("OutputStream is null");
+                    os.write(imageBytes);
+                    os.flush();
+                }
+
+                // Android 10+: IS_PENDING 해제해서 갤러리에 나타나게
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    values.clear();
+                    values.put(MediaStore.Images.Media.IS_PENDING, 0);
+                    resolver.update(uri, values, null, null);
+                } else {
+                    // Android 9 이하: 스캐너에 알림 (경로 필요)
+                    String path = getRealPathFromUri(uri);
+                    if (path != null) {
+                        MediaScannerConnection.scanFile(
+                                mContext, new String[]{ path }, new String[]{"image/png"}, null
+                        );
+                    }
+                }
+
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "✅ 갤러리에 저장됨", Toast.LENGTH_SHORT).show()
                 );
-
-                FileOutputStream fos = new FileOutputStream(imageFile);
-                fos.write(imageBytes);
-                fos.close();
-
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    Toast.makeText(mContext, "✅ 이미지 저장 완료:\n" + imageFile.getAbsolutePath(), Toast.LENGTH_SHORT).show();
-                });
 
             } catch (Exception e) {
                 e.printStackTrace();
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    Toast.makeText(mContext, "❌ 이미지 저장 실패", Toast.LENGTH_SHORT).show();
-                });
+                new Handler(Looper.getMainLooper()).post(() ->
+                        Toast.makeText(mContext, "❌ 이미지 저장 실패", Toast.LENGTH_SHORT).show()
+                );
             }
         }).start();
     }
+
+    /** content:// → 실제 파일 경로 (API <29에서만 사용, Q이상은 굳이 필요X) */
+    private String getRealPathFromUri(Uri uri) {
+        String[] proj = { MediaStore.Images.Media.DATA };
+        try (Cursor cursor = mContext.getContentResolver().query(uri, proj, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) {
+                int idx = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA);
+                return cursor.getString(idx);
+            }
+        } catch (Exception ignored) {}
+        return null;
+    }
+
 
 }

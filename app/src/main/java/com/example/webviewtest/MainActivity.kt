@@ -164,6 +164,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
+    // 뒤로가기 키 막기
     override fun onBackPressed() {
         AlertDialog.Builder(this)
             .setTitle("앱 종료")
@@ -177,7 +178,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-
+    // 구글 로그인
     private fun handleGoogleSignInResult(task: Task<GoogleSignInAccount>) {
         try {
             val account = task.getResult(ApiException::class.java)
@@ -194,9 +195,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-
-
-
+    // 카메라 열기
     fun openCamera() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
@@ -210,6 +209,8 @@ class MainActivity : AppCompatActivity() {
         }
         launchCameraIntent()
     }
+
+    // 카메라 권한
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -234,7 +235,7 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-
+    // 카메라 실행
     private fun launchCameraIntent() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
 
@@ -255,6 +256,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
+    // 갤러리 열기
     fun openGallery() {
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
             type = "image/*"

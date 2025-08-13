@@ -296,6 +296,16 @@ public class WebAppInterface {
     public void shareInstagramBase64(String base64Image, String caption) {
         new Thread(() -> {
             try {
+                // 0) 인스타그램 설치 확인
+                if (!isAppInstalled(INSTAGRAM_PKG)) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            Toast.makeText(mContext, "Instagram이 설치되어 있지 않습니다. 설치 페이지로 이동합니다.", Toast.LENGTH_SHORT).show()
+                    );
+                    goToInstagramInstallPage();
+                    return;
+                }
+
+
                 // 1) 파일 저장 (파일명 유니크)
                 String base64 = base64Image.split(",")[1];
                 byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
@@ -375,6 +385,15 @@ public class WebAppInterface {
     public void shareInstagramImageOnly(String base64Image) {
         new Thread(() -> {
             try {
+                // 0) 인스타그램 설치 확인
+                if (!isAppInstalled(INSTAGRAM_PKG)) {
+                    new Handler(Looper.getMainLooper()).post(() ->
+                            Toast.makeText(mContext, "Instagram이 설치되어 있지 않습니다. 설치 페이지로 이동합니다.", Toast.LENGTH_SHORT).show()
+                    );
+                    goToInstagramInstallPage();
+                    return;
+                }
+
                 // 1) 파일 저장 (파일명 유니크)
                 String base64 = base64Image.split(",")[1];
                 byte[] imageData = Base64.decode(base64, Base64.DEFAULT);
@@ -412,6 +431,45 @@ public class WebAppInterface {
                 }
             } catch (Exception e) { e.printStackTrace(); }
         }).start();
+    }
+
+    // 인스타 설치 여부 확인용
+    private static final String INSTAGRAM_PKG = "com.instagram.android";
+    private static final String PLAY_STORE_PKG = "com.android.vending";
+
+    private boolean isAppInstalled(String pkg) {
+        try {
+            PackageManager pm = mContext.getPackageManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageInfo(pkg, PackageManager.PackageInfoFlags.of(0));
+            } else {
+                pm.getPackageInfo(pkg, 0);
+            }
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    // 인스타 플레이스토어로 이동
+    private void goToInstagramInstallPage() {
+        // 1) Play 스토어 앱으로 시도
+        try {
+            Uri marketUri = Uri.parse("market://details?id=" + INSTAGRAM_PKG);
+            Intent market = new Intent(Intent.ACTION_VIEW, marketUri);
+            market.setPackage(PLAY_STORE_PKG); // Play 스토어로 강제
+            market.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (market.resolveActivity(mContext.getPackageManager()) != null) {
+                mContext.startActivity(market);
+                return;
+            }
+        } catch (Exception ignore) {}
+
+        // 2) 웹 폴백(Play 스토어가 없는 기기 등)
+        Uri webUri = Uri.parse("https://play.google.com/store/apps/details?id=" + INSTAGRAM_PKG);
+        Intent web = new Intent(Intent.ACTION_VIEW, webUri);
+        web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        mContext.startActivity(web);
     }
 
     // 카카오톡

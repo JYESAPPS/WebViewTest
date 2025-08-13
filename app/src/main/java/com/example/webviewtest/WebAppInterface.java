@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Base64;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
@@ -528,17 +529,32 @@ public class WebAppInterface {
         }).start();
     }
     // WebAppInterface.java
+
+    // 기기 ID + 토큰 값 전송
     @JavascriptInterface
     public void sendTokenToWeb(String token) {
         if (mActivity instanceof MainActivity) {
             MainActivity main = (MainActivity) mActivity;
             main.runOnUiThread(() -> {
-                WebView webView = main.getWebView();  // ✅ 이제 인식됨
-                String js = String.format("window.receiveFcmToken('%s');", token);
+                WebView webView = main.getWebView();
+
+                // ✅ ANDROID_ID 가져오기
+                String deviceId = Settings.Secure.getString(
+                        mActivity.getContentResolver(),
+                        Settings.Secure.ANDROID_ID
+                );
+
+                // ✅ 토큰 + 디바이스 ID 함께 전달
+                String js = String.format(
+                        "window.receiveFcmToken('%s', '%s');",
+                        token,
+                        deviceId
+                );
                 webView.evaluateJavascript(js, null);
             });
         }
     }
+
 
     // 이미지 저장
     @JavascriptInterface

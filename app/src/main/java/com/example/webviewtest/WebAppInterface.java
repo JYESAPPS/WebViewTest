@@ -594,20 +594,8 @@ public class WebAppInterface {
         if (mActivity instanceof MainActivity) {
             MainActivity main = (MainActivity) mActivity;
             main.runOnUiThread(() -> {
-                WebView webView = main.getWebView();
-
-                // ✅ ANDROID_ID 가져오기
-                String deviceId = Settings.Secure.getString(
-                        mActivity.getContentResolver(),
-                        Settings.Secure.ANDROID_ID
-                );
-
-                // ✅ 토큰 + 디바이스 ID 함께 전달
-                String js = String.format(
-                        "window.receiveFcmToken('%s', '%s');",
-                        token,
-                        deviceId
-                );
+                WebView webView = main.getWebView();  // ✅ 이제 인식됨
+                String js = String.format("window.receiveFcmToken('%s');", token);
                 webView.evaluateJavascript(js, null);
             });
         }

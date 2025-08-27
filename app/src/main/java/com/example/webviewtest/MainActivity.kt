@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        webView.webViewClient = WebViewClient()
+        // webView.webViewClient = WebViewClient()
 
         val settings = webView.settings
         settings.javaScriptEnabled = true
@@ -136,32 +136,54 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-        webView.loadUrl("http://www.wizmarket.ai:53003/ads/login")
-        handleKakaoRedirect(intent)
-
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
 
-                // ✅ WebView 완전히 로딩된 이후에 JS 함수 호출
-                FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                // ✅ 페이지 로딩 완료 후 토큰 + UUID 전송
+                com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                     if (task.isSuccessful) {
-                        val token = task.result
-                        Log.d("FCM", "토큰 (onPageFinished): $token")
+                        val token = task.result ?: ""
+                        val installationId = getOrCreateInstallationId() // ✅ 추가된 한 줄
 
-                        webView.evaluateJavascript("window.receiveFcmToken('$token');", null)
+                        Log.d("FCM", "토큰 (onPageFinished): $token")
+                        Log.d("FCM", "installationId: $installationId")
+
+                        // ✅ JS: token + installationId 두 개 전달
+                        webView.evaluateJavascript(
+                            "window.receiveFcmToken('$token','$installationId');",
+                            null
+                        )
                     } else {
                         Log.w("FCM", "토큰 가져오기 실패", task.exception)
                     }
+
                 }
             }
         }
+
+
+        webView.loadUrl("http://www.wizmarket.ai:53003/ads/login")
+        handleKakaoRedirect(intent)
+
+
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         handleKakaoRedirect(intent)
     }
+
+    private fun getOrCreateInstallationId(): String {
+        val pref = getSharedPreferences("app", MODE_PRIVATE)
+        var id = pref.getString("installation_id", null)
+        if (id == null) {
+            id = java.util.UUID.randomUUID().toString()
+            pref.edit().putString("installation_id", id).apply()
+        }
+        return id
+    }
+
 
 
     // 뒤로가기 키 막기

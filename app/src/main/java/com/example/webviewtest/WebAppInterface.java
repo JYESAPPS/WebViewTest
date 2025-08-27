@@ -6,6 +6,7 @@ import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.database.Cursor;
@@ -588,18 +589,45 @@ public class WebAppInterface {
     }
     // WebAppInterface.java
 
-    // 기기 ID + 토큰 값 전송
+
+
+
+
+    // 어디서든 재사용할 유틸 (WebAppInterface 내부 static으로 두면 편함)
+    public static String getOrCreateInstallationId(Context ctx) {
+        SharedPreferences prefs = ctx.getSharedPreferences("app", Context.MODE_PRIVATE);
+        String id = prefs.getString("installation_id", null);
+        if (id == null) {
+            id = java.util.UUID.randomUUID().toString();
+            prefs.edit().putString("installation_id", id).apply();
+        }
+        return id;
+    }
+
+    // 기기 토큰 + UUID 같이 전송
     @JavascriptInterface
     public void sendTokenToWeb(String token) {
         if (mActivity instanceof MainActivity) {
             MainActivity main = (MainActivity) mActivity;
             main.runOnUiThread(() -> {
-                WebView webView = main.getWebView();  // ✅ 이제 인식됨
-                String js = String.format("window.receiveFcmToken('%s');", token);
+                WebView webView = main.getWebView();
+
+                // ✅ UUID 불러오기
+                String installationId = getOrCreateInstallationId(mActivity);
+
+                // ✅ JS 함수 시그니처를 2개 인자(token, installationId) 받도록 수정
+                String js = String.format("window.receiveFcmToken('%s','%s');", token, installationId);
+
+                // ✅ JS 실행
                 webView.evaluateJavascript(js, null);
+
+                // (옵션) 로그 확인
+                Log.d("WebAppInterface", "FCM Token: " + token);
+                Log.d("WebAppInterface", "Installation ID: " + installationId);
             });
         }
     }
+
 
 
     // 이미지 저장
